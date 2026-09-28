@@ -1,0 +1,1 @@
+Hi! I'd like to investigate this issue. I'll reproduce the failing `test_query_with_partial_overlap` test and check whether the fixture gives the scorer full query-term overlap instead of the intended partial overlap. I'll report back here with the environment, steps, and observed result before making any changes.
