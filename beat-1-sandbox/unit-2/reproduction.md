@@ -28,6 +28,8 @@ issue page on its own. **Then paste the text of that comment underneath the link
 pasted text is what this field is graded on, so copy across what you actually posted.]
 https://github.com/codepath/pathreview-ai301-fa26-s1/issues/64#issuecomment-5864019055
 
+Hi! I'd like to investigate this issue. I'll attempt to reproduce the failing test_query_with_partial_overlap test and check whether the fixture gives the scorer full query-term overlap instead of the intended partial overlap. I'll report back here with the environment, steps, and observed result before making any changes.
+
 **Reproduction comment**
 
 [[Link to the comment where you posted your reproduction. It must record the environment
@@ -35,6 +37,51 @@ https://github.com/codepath/pathreview-ai301-fa26-s1/issues/64#issuecomment-5864
 **Then paste the text of that comment underneath the link** — the pasted text is what this
 field is graded on, so copy across what you actually posted.]] 
 (https://github.com/codepath/pathreview-ai301-fa26-s1/issues/64#issuecomment-5874798837)
+Environment:
+
+Windows, Git Bash
+Python 3.12
+pytest 9.1.1
+Repository: my fork of codepath/pathreview-ai301-fa26-s1
+Branch: main
+Test file: tests/unit/test_relevance_scorer.py
+Steps:
+
+Created and activated a Python virtual environment.
+
+Installed pytest and the dependency needed by the relevance scorer (structlog).
+
+Ran the full unit test file:
+
+python -m pytest tests/unit/test_relevance_scorer.py -q
+
+Result:
+
+18 passed, 1 xfailed
+
+Re-ran the affected test while ignoring the xfail marker:
+
+python -m pytest "tests/unit/test_relevance_scorer.py::TestRelevanceScorer::test_query_with_partial_overlap" -q --runxfail
+
+Observed:
+The test fails at:
+
+assert 0.3 < score < 0.9
+
+with:
+
+E assert 1.0 < 0.9
+
+The captured scorer output also reports:
+
+avg_score=1.0
+
+The fixture uses the query Python Django web framework and the chunk Django is a Python web framework for rapid development, so all four query terms are present. This gives full keyword overlap rather than the partial overlap the test is meant to exercise.
+
+Outcome:
+I reproduced issue #64. The test fixture produces a relevance score of 1.0, so the assertion expecting a middle-range partial-overlap score fails when the xfail marker is bypassed.
+
+
 
 ## Eval iterations
 
