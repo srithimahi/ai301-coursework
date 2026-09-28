@@ -15,8 +15,7 @@ label is not graded.
 
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile — no `@`, no profile URL. Your
-comments upstream are identified by this name.]
+srithimahi
 
 ---
 
@@ -27,13 +26,15 @@ comments upstream are identified by this name.]
 [Link to the comment where you claimed the issue. Use the comment's own permalink, not the
 issue page on its own. **Then paste the text of that comment underneath the link** — the
 pasted text is what this field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s1/issues/64#issuecomment-5864019055
 
 **Reproduction comment**
 
-[Link to the comment where you posted your reproduction. It must record the environment
+[[Link to the comment where you posted your reproduction. It must record the environment
 (OS, relevant versions, code state), steps a stranger could follow, and what you observed.
 **Then paste the text of that comment underneath the link** — the pasted text is what this
-field is graded on, so copy across what you actually posted.]
+field is graded on, so copy across what you actually posted.]] 
+(https://github.com/codepath/pathreview-ai301-fa26-s1/issues/64#issuecomment-5874798837)
 
 ## Eval iterations
 
@@ -42,29 +43,23 @@ fields.
 
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+- Full run 1: 19/20 agreement. The only disagreement was `pkg-20`, where my rubric returned `accept` while the gold label was `reject`. The disclosure category was 0/1.
+- Targeted rerun with `--only pkg-20`: the rubric returned `reject`, matching the gold label, after I revised the repository-conventions check and evidence guide to make required AI-assistance disclosure explicit.
+- Final full run: 20/20 agreement. All categories matched: clear-accept 8/8, disclosure 1/1, no-evidence 4/4, unfollowable-comms 3/3, and wrong-target 4/4.
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+I analyzed `pkg-20`. My final rubric decided `reject`, which matched the gold label of `reject`. The technical reproduction itself was strong: it recorded a specific Ghostty 1.3.1 environment, gave reproducible steps, showed the mode-2031 output for both configurations, and matched the behavior described in the issue. However, the repo-facts block stated that Ghostty requires all AI usage to be disclosed, including the tool used and the extent of assistance. The candidate claim comment and reproduction report contained no such disclosure. Because my repository-conventions check is required, the missing mandatory disclosure caused the package to be rejected even though its technical evidence was otherwise sufficient.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/repro-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+> `| Repository conventions respected | The claim comment and repro report read against the repository conventions in the repo-facts block and references/evidence-guide.md | Pass only when every applicable repository-specific communication, contribution, and disclosure requirement is satisfied. If the repo requires disclosure of AI assistance, the package must explicitly include the required disclosure, including the tool and extent of assistance when the policy asks for them; absence of that disclosure fails this check even when the technical reproduction is otherwise correct. | required |`
+
+I revised this check after my first full evaluation scored `pkg-20` as `accept` even though its gold label was `reject`. My earlier wording mentioned AI disclosure, but it did not make sufficiently explicit that a missing required disclosure must fail the check. I changed the pass condition to state that every applicable repository-specific requirement must be satisfied and that absence of a required AI disclosure is a failure even when the reproduction itself is technically correct. I also made the corresponding guidance more explicit in `references/evidence-guide.md`.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
-
+The revision deliberately makes repository-specific disclosure requirements a hard gate. This changed `pkg-20` from `accept` to `reject`: its technical reproduction was otherwise strong, but Ghostty's captured repository policy required disclosure of AI assistance and the candidate supplied none. I reran `pkg-20` with `--only` after making the change and it matched the expected `reject`. I then ran the complete 20-package evaluation again; it scored 20/20 with every category matched, showing that the tighter disclosure rule fixed the disclosure case without changing the expected outcomes of the other scored packages.
 ---
 
 Related paths: `eval-run.txt` in this directory; your skill's files in
