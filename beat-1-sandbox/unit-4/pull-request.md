@@ -2,60 +2,54 @@
 
 Path: `beat-1-sandbox/unit-4/pull-request.md`
 
-Record of the pull request you opened against the Path Review repo, and of the evaluation
-runs that produced `eval-run.txt`. This file is graded at the path above; a copy kept
-anywhere else in the repository is not read.
-
-Complete every labelled field below. Each is graded on its own; content placed under the wrong
-label is not graded.
-
----
-
 ## Your pull request
 
 **Pull request**
 
-[Link to the pull request you opened. It must be the pull request's own page on the Path
-Review repo, not your fork's branch page.]
+https://github.com/codepath/pathreview-ai301-fa26-s1/pull/195
 
 **Branch**
 
-[The name of the branch the pull request comes from, exactly as it appears in your fork.
-The naming shape is a type prefix, then the issue number, then a short description. **The
-issue number in the branch name must be the number of the issue the pull request fixes** —
-a name carrying any other number does not satisfy this field.]
+`fix/64-partial-overlap-fixture`
 
 ## Eval iterations
 
-Answer all four sections. Quote source text directly; paraphrase does not satisfy these
-fields.
-
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+Final full evaluation: **20/20 scored items** (PASS; required bar: 18/20).
+
+The final `eval-run.txt` reports:
+
+> agreement: 20/20 scored items  (bar: 18/20: PASS)
+
+All 20 scored packages agreed with their gold labels, including all five categories: clear-accept (7/7), not-tested (4/4), silent-drift (4/4), standards-wall (2/2), and unreviewable (3/3).
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+I selected `pkg-07`, which belongs to the `not-tested` category.
+
+The evaluation recorded:
+
+> pkg-07  not-tested      reject  reject   yes
+
+My rubric returned **reject**, matching the gold label of **reject**.
+
+The relevant rubric check is Test evidence, which requires observable results supporting the PR's testing claims. A PR without sufficient evidence of actual test execution cannot establish that its changes have been verified. The rubric therefore rejects submissions with missing or unverifiable test evidence rather than treating listed commands as proof of successful testing.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/pr-precheck/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+I chose the Test evidence check. Its exact pass condition in my rubric is:
+
+> The evidence provides observable results relevant to the changed behavior, including before/after reproduction where applicable. Test claims are supported by actual outputs or specific observed results rather than unsupported assertions. Failed or incomplete tests are acceptable when their outcomes and implications are disclosed accurately.
+
+I chose this wording to distinguish actual execution evidence from unsupported testing claims. Simply listing a command does not prove that it ran. I also intentionally allowed failed or incomplete tests when their outcomes and implications are accurately disclosed, because transparent evidence is more useful to reviewers than an unsupported claim that everything passed.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
+I chose to make all six rubric checks required and to treat `unclear` as a rejection. This prioritizes verifiable submission readiness over optimistic assumptions.
 
----
+The trade-off is that a potentially correct implementation may receive a reject verdict because its evidence is incomplete. I accepted this limitation because missing evidence prevents a reviewer from establishing whether mandatory requirements were satisfied.
 
-Related paths: `eval-run.txt` in this directory; your skill's files in
-`tools/pr-precheck/`.
+I balanced this strictness with the honest-outcome principle: an accurately disclosed failed test, incomplete implementation, or deviation does not automatically cause rejection when the other required checks pass.
+
+The final evaluation achieved 20/20 agreement, including all four `not-tested` packages and all four `silent-drift` packages.
