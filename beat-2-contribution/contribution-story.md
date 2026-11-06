@@ -1,4 +1,4 @@
-# Contribution: [Issue Title]
+# Contribution: MudDataGrid: Add option to expand row on click
 
 Path: `beat-2-contribution/contribution-story.md`
 
@@ -8,10 +8,9 @@ format criteria grade exactly that. Your course repo link is the whole submissio
 files and no evidence uploads are part of Assignment 5.
 
 **Contribution Number:** [1]
-**Student:** [Student name]
-**GitHub Username:** [your GitHub username, exactly as it appears on your profile - no @, no
-profile URL. Your comments upstream are identified by this name.]
-**Issue:** [GitHub issue link]
+**Student:** Srithika Mahendran
+**GitHub Username:** srithimahi
+**Issue:** https://github.com/MudBlazor/MudBlazor/issues/11850
 **Pull Request:** [GitHub PR link, once opened]
 
 One repository, built across units 5 to 8, telling the whole story of your real
@@ -88,24 +87,80 @@ drafted, what you did with the draft.]
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs in your own words: how you searched, what your scan
-surfaced, what your scout's verdict said, why this issue fits your
-profile, and what you hope to learn. If your scout's verdict on it
-was reject and you chose it anyway, say so here and say why; choosing
-against your own tool silently is what loses points. Close with an
-honest read of the tool itself: where the scout fell short on a real
-wild search and what you changed or would change, or what convinced
-you it held up. **Record the link to your claim comment in this section too.**
-Not claimed yet? Write `claim pending` and today's date where the link goes,
-and add the link the moment your claim lands.]
+I found MudBlazor #11850 on the official CodePath Issue Selection
+website. My own scout scan had already surfaced santoshshinde2012/holdmap
+#114, which asks to clear three svelte-check accessibility warnings, so I
+ended up with two real candidates. I graded both with my issue-scout
+under the patched Unit 6 rubric, and both got ACCEPT: every required
+check passed for each. The difference was the new difficulty note.
+holdmap #114 came back as straightforward because the issue names the
+file and lines and has a clear acceptance list. MudBlazor #11850 came
+back as ambitious: no maintainer has settled the design, and it's C# and
+Blazor, which are outside the Python/JavaScript/TypeScript in my fit
+profile. By fit alone, holdmap ranked first, so choosing MudBlazor means
+going against my scout's ranking, though not its verdict. I made that
+choice on purpose. MudBlazor has active maintainers (v9.12.0 shipped on
+2026-10-30, and the last five commits on `dev` were made in the two days
+before I graded it), a mature contributor workflow with a detailed
+CONTRIBUTING.md and AGENTS.md, and outside pull requests that actually
+get merged, one of them about two hours after it was opened. holdmap is
+active too, but it's a solo project, and its one outside PR was folded
+into the owner's release PR instead of being merged directly. I want to
+learn C#, Blazor, and how UI components are designed, and I want to
+learn them by contributing to an established library with real review
+standards.
+
+The scout got the facts it can measure right. Repository activity,
+maintainer activity and availability were all correct when I checked
+them by hand: nobody had claimed the issue, and no PR was linked or
+mentioned. Where its ACCEPT fell short was the design question. The
+issue proposes a `RowClickExpand` parameter, but `MudDataGrid` already
+selects a row when you click it (`SelectOnRowClick` defaults to true),
+and in #7982 a maintainer described the expand toggle as deliberately
+separate from row selection. A row-click-to-expand option cuts across
+that, and the scout's verdict didn't capture it. The ambitious note
+pointed me in the right direction, but the important context from
+#7982 only surfaced during a deeper investigation of related issues.
+I haven't reproduced
+anything yet, and no maintainer has approved the design. My claim says
+what I plan to investigate first and asks that one design question
+before I write any code:
+https://github.com/MudBlazor/MudBlazor/issues/11850#issuecomment-6677061973
 
 **Toolkit**
 
-- Tool: issue-scout (your scout: your search strategy, your rubric),
-  and how you used it
-- What it produced: [the scan and its verdict on this issue, described]
-- Difficulties: [where it fell short, or "none met" if none did]
-- What changed: [what you patched or would update, or "nothing"]
+- Tool: issue-scout (my search strategy, my rubric). I ran it in direct
+  mode on the two issue URLs (MudBlazor #11850 and holdmap #114) after
+  patching the rubric for Unit 6. I didn't run a new scan; holdmap had
+  come from my earlier scan, and MudBlazor from the CodePath site.
+- What it produced: a regrade appended to `scan-output.md` with seven
+  checks per issue, both ACCEPT, and a difficulty note on each: holdmap
+  #114 straightforward, MudBlazor #11850 ambitious, naming the open
+  design edge (how a row click should interact with `RowClick`,
+  `SelectOnRowClick` and the existing hierarchy toggle) and the
+  unfamiliar C#/Blazor stack.
+- Difficulties: my original *Manageable scope* check was written for
+  the sandbox. It failed any issue that left "a required product
+  decision… unresolved", and that describes most real issues, including
+  this one. Under that check, MudBlazor's grade depended on how strictly
+  the grader read the wording. Even after the patch, the scout only
+  reads the issue's own thread. It didn't see the maintainer's stance on
+  #7982, and it doesn't notice that the `good first issue` label was
+  added by a bot rather than a maintainer. The verdict said "safe to
+  claim", but the hard question was still open.
+- What changed: I replaced *Manageable scope* with the Unit 6
+  *scope-feasible* check, which fails only issues that aren't a single
+  piece of work, such as umbrella issues, codebase-wide checklists, or
+  trackers of many sub-tasks. I also added the difficulty note
+  (straightforward / moderate / ambitious), which flags open edges
+  without filtering them out. I logged the change in `scan-notes.md`
+  on 2026-11-05 and backed up the old rubric. What I would still
+  change: have the difficulty note check related issues for
+  maintainer statements about the same component, and note whether a
+  `good first issue` label was added by a human or a bot. Comparing the
+  verdict with my own judgment taught me that ACCEPT means "available
+  and alive", not "the design is settled"; that part is still mine to
+  read and to ask about.
 
 ---
 
