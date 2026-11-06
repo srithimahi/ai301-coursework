@@ -67,11 +67,21 @@ evaluation fixtures. I then used the scout to grade MudBlazor #11850,
 which passed all required checks and became my selected contribution
 issue.
 
-**Unit 6: [one line on the tool work]**
+**Unit 6: Voice guard, upstream voice rules, and MudBlazor repo memory (2026-11-05)**
 
-[2-4 sentences: the voice-guard, the repo-memory file. What broke or
-fell short, and what changed because of it. "Nothing broke" counts when
-it is true - say how you know.]
+I consolidated the voice rules from repro-check, plan-check, and
+pr-precheck into one canonical guide and added upstream rules for claims, questions, and
+follow-up pings, then installed the voice guard as a PreToolUse hook on
+the Bash tool. My first wiring test failed because the hook only watches
+Bash and Claude ran the command through PowerShell, so nothing was
+checked. When I reran `gh issue comment --help` through Bash, the guard
+fired, blocked it as having no body it could read, and logged the stop;
+PowerShell is still outside the guard's protection, so I now post to
+GitHub only through Bash with `--body-file`. In my MudBlazor fork I
+created a git-excluded `CLAUDE.local.md` from the Unit 6 template that
+imports `AGENTS.md` and records my issue and claim link, the DataGrid
+files and testing conventions, and the unresolved
+`RowClickExpand`/`SelectOnRowClick` design question.
 
 **Unit 7: [one line on the tool work]**
 
