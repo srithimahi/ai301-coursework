@@ -205,31 +205,121 @@ https://github.com/MudBlazor/MudBlazor/issues/11850#issuecomment-6677061973
 
 **Environment Setup**
 
-[What a stranger would need to stand this up: your operating system,
-the relevant versions (language, runtime, package manager, the project
-itself), and how you set the project up. Then the challenges you faced
-and how you solved them, or that none came up.]
+I worked on Windows 11 (10.0.26200) in my fork, `srithimahi/MudBlazor`,
+cloned to `C:\Srithika\Projects\Codepath\MudBlazor` with `origin` set to
+the fork and `upstream` to `MudBlazor/MudBlazor`. I tested on the `dev`
+branch at commit `97f33ac` (#14130). MudBlazor's `global.json` pins the
+.NET SDK to the 10.0.400 feature band (`rollForward: latestPatch`), but
+my machine only had .NET 8.0.203 and 8.0.204, so `dotnet --version`
+inside the repo failed with the `global.json` error. I installed the
+official .NET SDK 10.0.403 through `winget` (machine-wide, approved
+through a UAC prompt) without removing the .NET 8 SDKs, and after that
+the repo resolved to 10.0.403. `dotnet tool restore` restored the
+repo's local Bun tool (`bundotnet.cli` 3.0.0), and my first existing
+test, `DataGridSingleSelectOnRowClick`, passed (1 passed, 0 failed,
+0 skipped). For the reproduction I used `MudBlazor.UnitTests.Viewer`,
+the test app AGENTS.md recommends for behavior that needs a browser,
+and put my component in `TestComponents/Scratch/`, which the repo
+gitignores for throwaway repros. My first Viewer build failed with
+`CS0246` because `DataGridHierarchyVisibilityToggledEventArgs` lives in
+the `MudBlazor.Utilities` namespace, not `MudBlazor`; AGENTS.md warns
+about exactly this, and adding `@using MudBlazor.Utilities` fixed it.
+To click through the scenarios I installed `playwright-core` 1.56.1
+into a temporary folder outside the repo and drove my installed Google
+Chrome 157.0.8103.38 headless. My first script run timed out because
+`MudSwitch` puts the `data-testid` on the `<input>` itself, not on a
+wrapper, so I fixed the selector.
 
 **Steps to Reproduce**
 
-1. [Step 1]
-2. [Step 2]
-3. [Observed result]
+1. Create `src/MudBlazor.UnitTests.Viewer/TestComponents/Scratch/DataGridRowClickRepro.razor`:
+   a three-row `MudDataGrid` (Sam, Alicia, Ira) with a `HierarchyColumn`,
+   `ChildRowContent`, a `SelectOnRowClick` switch, and an on-page log of
+   `RowClick`, `SelectedItemChanged` and `HierarchyVisibilityToggled`.
+   The full source is in my reproduction report draft.
+2. From the repo root, build the Viewer (a full build, so the Bun
+   assets compile):
+   `dotnet build src/MudBlazor.UnitTests.Viewer/MudBlazor.UnitTests.Viewer.csproj --nologo`
+   (Build succeeded, 0 warnings, 0 errors).
+3. Run it:
+   `dotnet run --project src/MudBlazor.UnitTests.Viewer/MudBlazor.UnitTests.Viewer.csproj --no-build --urls http://localhost:5199`
+   and open `http://localhost:5199/viewer/Scratch/DataGridRowClickRepro?chrome=none&theme=light`
+   (the page reached `data-viewer-state="ready"`).
+4. In one page load, clearing the log before each click (selection and
+   expansion carry over):
+   - A. With `SelectOnRowClick` on (the default), click Sam's Name cell.
+   - B. Still on, click Ira's expand button.
+   - C. Turn `SelectOnRowClick` off, then click Alicia's Name cell.
+   - D. Still off, click Alicia's expand button.
+5. Observed result: row-body clicks (A, C) never expanded a detail row;
+   only the expand button (B, D) did. The clicks were made by my
+   Playwright script in headless Chrome, one automated click per
+   scenario, not by hand.
 
 **Reproduction Evidence**
 
-- **Commit showing reproduction:** [link to commit in your fork]
-- **Screenshots/logs:** [if applicable]
-- **My findings:** [what you discovered during reproduction; an
-  honest, evidenced cannot-reproduce that led you to re-pick or ask
-  the maintainer belongs here and costs you nothing]
+- **Commit showing reproduction:** none. The repro component lives in
+  the gitignored `Scratch/` folder on purpose and is not committed to
+  my fork; its full source is in my reproduction report draft, so
+  anyone can recreate it.
+- **Screenshots/logs:** the on-page event log from the run:
+
+  | Scenario | Selected after | Detail rows shown after | Events raised |
+  |---|---|---|---|
+  | A. Row body, Sam (on) | (none) → Sam | none | `RowClick: Sam (row 0)`, `SelectedItemChanged: Sam` |
+  | B. Button, Ira (on) | Sam (unchanged) | Ira | `HierarchyVisibilityToggled: Ira expanded=True` |
+  | C. Row body, Alicia (off) | Sam (unchanged) | Ira (unchanged) | `RowClick: Alicia (row 1)` |
+  | D. Button, Alicia (off) | Sam (unchanged) | Alicia, Ira | `HierarchyVisibilityToggled: Alicia expanded=True` |
+
+  A screenshot after D matched the log (Alicia and Ira expanded, the
+  switch off, "Selected: Sam"). I kept it locally and did not upload it.
+- **My findings:** this is a missing enhancement, not a broken feature.
+  Issue #11850 asks for an option where clicking a row "will expand its
+  detail section without requiring to click the explicit expand
+  button". On current `dev` there is no such option: a row-body click
+  selects the row when `SelectOnRowClick` is on and always raises
+  `RowClick`, but never expands it (A, C). Everything I tested matched
+  the current API and docs. I also observed that the expand button
+  raised neither `RowClick` nor `SelectedItemChanged` (B, D), so
+  expansion and selection are fully separate today. That matches the
+  maintainer comment on #7982, and it is why my claim asks how a
+  `RowClickExpand` option should interact with `SelectOnRowClick`
+  before I build anything. No maintainer has answered yet. Not tested:
+  - collapsing with a second click
+  - `ExpandSingleRow`
+  - rows disabled through `ButtonDisabledFunc`
+  - keyboard interaction
+  - virtualized rows
+  - a cell with its own `CellClick` handler
+  - anything clicked on dev.mudblazor.com, where I only read the Row
+    Detail View docs
+
+  The "no double toggle from the expand button" result rests on one
+  click per state, not a full test.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: repro-check (my rubric, evidence guide and voice guide). I ran
+  it in live mode on the full package: my posted claim comment plus my
+  reproduction report draft (`repro-draft.md`), read against the live
+  issue thread.
+- What it produced: ACCEPT, with all five required checks passing:
+  Environment matches, Steps are reproducible, Behavior matches issue,
+  Outcome is supported, and Repository conventions respected. It also
+  checked the draft against my voice guide and found no broken rules.
+- Difficulties: my rubric is shaped around bugs ("the behavior shown
+  matches the issue"), and this issue is a feature request, so there
+  is no bug to reproduce. "Behavior matches issue" passes only because
+  the issue describes the gap, and the report shows that gap. The
+  checks also grade the write-up against the evidence I give them;
+  they cannot tell whether the event log came from a real run. So I
+  separately compared every event line and the "after" state for each
+  scenario with the raw script output, and they matched exactly.
+- What changed: the check confirmed the report should say plainly that
+  this is a missing option, not a bug, and list what I did not test.
+  It also suggested naming the component's full path in the draft. I
+  would add a rubric note for feature requests: an evidenced "the
+  option doesn't exist today" should count as matching the issue.
 
 ---
 
