@@ -55,10 +55,18 @@ happened; these entries are the toolkit's own timeline.
 All four entries are graded. Keep every heading below, and fill each
 one in the week it belongs to.
 
-**Unit 5: [one line on the tool work]**
+**Unit 5: Issue-scout customization and issue selection (2026-11-05)**
 
-[2-4 sentences: what you built (the scout, your strategy), what broke
-or fell short, what changed because of it.]
+I customized the issue-scout skill with my fit profile, GitHub search
+strategies, and a rubric for evaluating open-source issues. My initial
+scan revealed problems with language and date filtering, ranking issues
+with identical comment counts, and evaluating maintainer activity in
+smaller repositories. I corrected the search commands, improved the
+ranking and activity criteria, tested the search strategy with live
+GitHub queries, and validated the rubric changes against five
+evaluation fixtures. I then used the scout to grade MudBlazor #11850,
+which passed all required checks and became my selected contribution
+issue.
 
 **Unit 6: [one line on the tool work]**
 
