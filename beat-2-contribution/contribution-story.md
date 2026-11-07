@@ -609,6 +609,20 @@ opt-in `RowClickExpand` parameter. The maintainer pointed to the
 existing API and a docs example, so I dropped the parameter. I'll
 record later changes here and in `plan.md`.
 
+*Deviations during the build (2026-11-06; details in Implementation
+Notes):*
+
+- With `ExpandSingleRow` on, a second click does not collapse the open
+  row, from a row click or the expand button. That's existing behavior
+  since #11181, so the docs text says so instead of claiming a second
+  click always collapses.
+- The example uses `ShowCode="false"`, because `ShowCode` defaults to
+  `true`.
+- It follows the existing examples' `new List<Element>()` pattern and
+  adds a `MudDataGridPager`.
+- Choice 3 is settled: the expand button toggled once in every run, so
+  there's no `stopPropagation` wrapper.
+
 **Toolkit**
 
 - Tool: Claude Code in my MudBlazor clone, with `CLAUDE.local.md` and
@@ -650,40 +664,208 @@ record later changes here and in `plan.md`.
 
 ## Testing Strategy
 
-[What observable checks prove the fix: your reproduction steps re-run
-against the built change (before and after), and the repo's own test
-suite or checks with the outcome shown. "Tests pass" with nothing
-observable named is not a strategy.]
+This change is docs only, so no library behavior changes and no test
+can fail first. What has to be proven is that the pattern the example
+teaches really does what the docs text says, and that the docs still
+build and render. I proved that in three layers. The full record,
+with every event line, is in `test_evidence.md` in my clone.
+
+1. **Rerun my reproduction against the pattern (Viewer, before and
+   after).** I used my scratch component from the reproduction, with
+   a switch that wires `RowClick` to
+   `ToggleHierarchyVisibilityAsync(args.Item)`.
+   - **Before:** with the switch off on the feature branch (A0), a
+     row-body click on Sam still only raised `RowClick` and
+     `SelectedItemChanged: Sam`, with no detail row. That's the same
+     as scenario A on 2026-11-05.
+   - **After:**
+     - With the switch on, the same click raised
+       `HierarchyVisibilityToggled: Sam expanded=True` and showed
+       Sam's detail (A). A second click collapsed and deselected it
+       (A2).
+     - With `SelectOnRowClick` off, the row expanded and collapsed
+       with no selection events (C, C2).
+     - The expand button toggled exactly once and never raised
+       `RowClick` (B, B2, D).
+     - With `ExpandSingleRow` on, a second click on the open row
+       didn't collapse it, from the row (E4) or the built-in button
+       with no handler (E6). That's existing behavior since #11181,
+       so I corrected the docs text instead of claiming a second
+       click always collapses.
+     - A row whose button is disabled still expanded on a row click
+       (F), which backs up the `ButtonDisabledFunc` caveat.
+2. **The real docs page (Docs.Server, my own run).** I saved three
+   screenshots in `C:\Srithika\Projects\Codepath\pr-evidence\11850\`:
+   - `before-no-section.png`: unchanged `upstream/dev`, where "Row
+     Detail Renderer" follows "Row Detail View" directly
+   - `after-section.png`: the new "Expand Row on Click" section with
+     its grid collapsed
+   - `after-row-expanded.png`: Hydrogen's detail ("Hydrogen is element
+     number 1.") shown
+   
+   A screenshot can't show which part of the row was clicked, so the
+   Viewer table is what proves row-click behavior. I didn't capture a
+   video or a "before" row click.
+3. **The repo's own checks.**
+   - Docs build (`dotnet build src/MudBlazor.Docs/MudBlazor.Docs.csproj -p:SkipBunCompile=true`):
+     PASS, 0 warnings, both before and after the wording fix.
+   - Docs tests (manifest row 2, `-c Release -p:GenerateDocsTests=true`):
+     total 1427, succeeded 1427, failed 0, skipped 0. That includes the
+     generated `DataGridRowClickExpandExample` render test. The run was
+     built before the description-only wording fix.
+   - `dotnet format whitespace` doesn't read `.razor` files ("0 of 0
+     files"), so I checked BOM, LF and trailing whitespace by hand.
+   - Still to run on the committed branch, through the ship-gate:
+     manifest row 1 (the full `MudBlazor.UnitTests` suite in Release)
+     and row 3 (`dotnet format src --verify-no-changes`). The ship-gate
+     re-runs row 2 as well.
+
+Limits:
+
+- The generated test only proves the example renders, not what a
+  click does.
+- The click behavior was automated in the Viewer, not on the docs
+  page.
+- Keyboard use, virtualized rows, `CellClick` cells, touch input and
+  other browsers aren't tested.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
+- Tool: Claude Code on my feature branch. It drove my gitignored
+  Viewer repro with a Playwright script (headless Chrome, outside the
+  repo), ran the Docs build and the docs-test row from my ship
+  manifest, and wrote `test_evidence.md`. It also checked my
+  Docs.Server screenshots against what they claim to show. I took the
+  screenshots myself.
+- What it produced: before/after event logs for scenarios A0–F, a
+  1427/1427 docs-test run, a record of which manifest rows have and
+  haven't run, and `test_evidence.md`, which lists only the three
+  screenshots that exist.
 - Difficulties:
-- What changed:
-
+  - My plan predicted that a second click always collapses, and
+    `ExpandSingleRow` proved that wrong.
+  - `dotnet format` reported success after checking zero files.
+  - A screenshot can't prove a row click, so the docs-page evidence
+    leans on the Viewer logs.
+  - Reading the screenshots caught a number I had made up (118
+    elements; the pager says 88).
+  - The screenshots show my personal browser tabs.
+- What changed: I corrected the docs wording and the row count,
+  checked the `.razor` formatting by hand, and wrote down that two
+  manifest rows haven't run yet instead of implying all checks pass.
+  Before upload, I'll crop the screenshots to the page. Next time I'd
+  record a short clip of the click, which proves more than a still
+  image.
 ---
 
 ## Implementation Notes
 
-[A running log, added to as you work. Date each entry. What you
-built, decisions you made when you made them, wrong turns included.]
+**2026-11-06**
 
-**[Date]**
+I branched `feature/datagrid-row-click-expand-example` from
+`upstream/dev` at `87eec3b`, one commit (a bUnit bump) past the
+`97f33ac` I planned against. `git fetch upstream` also brought in a
+tag literally named `upstream/dev`, which made the name ambiguous, so
+I used `refs/remotes/upstream/dev`. Nothing upstream already showed
+the pattern: no docs example calls `ToggleHierarchyVisibilityAsync`,
+and no PR mentions #11850.
 
-[Entry]
+Before writing any docs, I added switches to my gitignored Viewer
+repro for a `RowClick` → `ToggleHierarchyVisibilityAsync` handler,
+`ExpandSingleRow`, and a disabled expand button on Ira's row. I
+rebuilt the Viewer (Build succeeded, 0 warnings) and drove it with
+Playwright in headless Chrome, one automated click per step. These
+are the actual results:
 
-**[Date]**
+| Step | Events raised | Detail rows after |
+|---|---|---|
+| A0. Row body Sam, no handler | `RowClick`, `SelectedItemChanged: Sam` | none (same as my original repro) |
+| A. Row body Sam, handler | `RowClick`, `HierarchyVisibilityToggled: Sam expanded=True`, `SelectedItemChanged: Sam` | Sam |
+| A2. Row body Sam again | `RowClick`, `...Sam expanded=False`, `SelectedItemChanged: null` | none, Sam deselected |
+| B / B2. Expand button Ira, twice | one `...Ira expanded=True`, then one `...expanded=False`; no `RowClick` | Ira, then none |
+| C / C2. Row body Alicia, `SelectOnRowClick` off, twice | `RowClick` + one toggle each; no selection events | Alicia, then none |
+| D. Expand button Alicia (off) | one `...Alicia expanded=True` | Alicia |
+| E1/E2. `ExpandSingleRow`, row body Sam then Alicia | E2: `...Sam expanded=False`, `...Alicia expanded=True` | Sam, then only Alicia |
+| E3. `ExpandSingleRow`, expand button Ira | `...Alicia expanded=False`, `...Ira expanded=True` | only Ira |
+| **E4. `ExpandSingleRow`, row body Ira again** | `RowClick`, `SelectedItemChanged: Ira`, **no toggle** | **Ira stays open** |
+| **E6. `ExpandSingleRow`, no handler, expand button on open Ira** | **none** | **Ira stays open** |
+| F. Ira's button disabled (`isDisabled` true), row body Ira | `RowClick`, `...Ira expanded=True`, `SelectedItemChanged: Ira` | Ira (the caveat is real) |
 
-[Entry]
+The expand button toggled exactly once every time and never raised
+`RowClick`, so versile2's `stopPropagation` wrapper isn't needed and
+the example uses the plain `HierarchyColumn`. E4 was the surprise: my
+plan said "a second click collapses it". I checked whether that was
+my setup or the library. E6 shows the same thing with no handler at
+all, using only the built-in button. `ToggleHierarchyVisibilityAsync`
+in `ExpandSingleRow` mode clears every open row and re-adds the
+clicked one. Its own comment says so ("clear all open hierarchies,
+which will immediately add the item that was clicked"), and it has
+worked that way since `ExpandSingleRow` was added in #11181
+(`fb88ced94`). No existing test clicks an already-open row in that
+mode. So it's existing behavior, and I changed nothing in the library.
+I corrected the docs text instead, so it no longer says a second click
+always collapses.
+
+Then I added `DataGridRowClickExpandExample.razor` and an "Expand Row
+on Click" section between "Row Detail View" and "Row Detail Renderer"
+in `DataGridPage.razor`.
+
+Results:
+
+- `dotnet build src/MudBlazor.Docs/MudBlazor.Docs.csproj -p:SkipBunCompile=true`:
+  Build succeeded, 0 warnings. I re-ran it after the `ExpandSingleRow`
+  wording fix, with the same result.
+- `dotnet test --project src/MudBlazor.UnitTests.Docs/MudBlazor.UnitTests.Docs.csproj -c Release -p:GenerateDocsTests=true --hangdump --hangdump-timeout 60s`:
+  total 1427, succeeded 1427, failed 0, skipped 0 (2m 03s). The
+  generated file has a `DataGridRowClickExpandExample` case
+  (`ExampleDocsTests.generated.cs:270`). This run was built before
+  the wording fix, which only changed description text on the page;
+  the build above covers that change.
+- `dotnet format whitespace --folder --include <both files> --verify-no-changes`
+  exited 0 but "Formatted 0 of 0 files", because `dotnet format`
+  doesn't read `.razor` files. I checked by hand instead: UTF-8 BOM,
+  `git ls-files --eol` shows LF, and no trailing whitespace on my
+  lines.
+
+Deviations from `plan.md`, each made while building:
+
+- the `ExpandSingleRow` wording above
+- `ShowCode="false"`: I had assumed code panels start collapsed, but
+  `SectionContent.ShowCode` defaults to `true`, and AGENTS.md and
+  every other DataGrid section collapse long examples
+- `_elements = new List<Element>()` with a plain `GetFromJsonAsync`
+  assignment, matching the existing examples instead of my planned
+  `[]`/`?? []`
+- a `MudDataGridPager`, as in `DataGridDetailRowExample`, so the grid
+  doesn't render all 88 rows the data source returns (the pager reads
+  "1-10 of 88" in my Docs.Server screenshots; I first wrote 118 here
+  without checking)
+
+Not done yet:
+
+- `MudBlazor.Docs.Server` before/after screenshots
+- keyboard and virtualized-row checks
+- running the full unit-test suite and the CI format check from my
+  manifest
+
+Nothing is committed.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
-
+- Tool: Claude Code on my feature branch, driving my gitignored
+  Viewer repro with a Playwright script (headless Chrome, outside the
+  repo), then building Docs and running the docs tests.
+- What it produced: the event-log table above, the
+  `ExpandSingleRow` finding traced to `fb88ced94`, the example and
+  page section, and a 1427/1427 docs-test run.
+- Difficulties: my plan predicted that a second click always
+  collapses, and it doesn't in `ExpandSingleRow` mode. A clean
+  `dotnet format` exit hid that it had checked zero files. And the
+  `upstream/dev` tag collision broke the plain branch command.
+- What changed: I corrected the docs wording, checked the formatting
+  by hand, used the full remote ref, and recorded four deviations here
+  and in `plan.md`. Lesson: every row of a plan's expected-results
+  table is a prediction until it's run.
 ---
 
 ## Pull Request
