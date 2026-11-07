@@ -612,6 +612,12 @@ record later changes here and in `plan.md`.
 *Deviations during the build (2026-11-06; details in Implementation
 Notes):*
 
+- Two points in the timeline: I reproduced the issue and wrote this
+  plan against `dev` at `97f33ac` (2026-11-05). I created the feature
+  branch from `upstream/dev` at `87eec3b` (2026-11-06), one commit
+  later (a bUnit bump that doesn't touch the DataGrid). The Viewer
+  checks with the handler, including A0, ran on `87eec3b`.
+
 - With `ExpandSingleRow` on, a second click does not collapse the open
   row, from a row click or the expand button. That's existing behavior
   since #11181, so the docs text says so instead of claiming a second
@@ -715,10 +721,14 @@ with every event line, is in `test_evidence.md` in my clone.
      built before the description-only wording fix.
    - `dotnet format whitespace` doesn't read `.razor` files ("0 of 0
      files"), so I checked BOM, LF and trailing whitespace by hand.
-   - Still to run on the committed branch, through the ship-gate:
-     manifest row 1 (the full `MudBlazor.UnitTests` suite in Release)
-     and row 3 (`dotnet format src --verify-no-changes`). The ship-gate
-     re-runs row 2 as well.
+   - On the committed branch (`db5f74c92`, 2026-11-07), run once each:
+     - Manifest row 1, the full `MudBlazor.UnitTests` suite in Release:
+       total 6364, succeeded 6362, failed 0, skipped 2. The two skipped
+       are upstream's `[Explicit]` debounce stress tests.
+     - Row 3, `dotnet format src --verify-no-changes`: exit 0 with no
+       changes. It doesn't read `.razor` files, so it backs up the
+       repo's C#, not my two files.
+     - The ship-gate re-runs all three rows before the PR opens.
 
 Limits:
 
@@ -740,7 +750,9 @@ Limits:
 - What it produced: before/after event logs for scenarios A0–F, a
   1427/1427 docs-test run, a record of which manifest rows have and
   haven't run, and `test_evidence.md`, which lists only the three
-  screenshots that exist.
+  screenshots that exist. Later the remaining manifest rows ran on the
+  committed branch: unit tests 6362/6364 with 2 `[Explicit]` skips and
+  0 failures, and the format check with no changes.
 - Difficulties:
   - My plan predicted that a second click always collapses, and
     `ExpandSingleRow` proved that wrong.
