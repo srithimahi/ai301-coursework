@@ -178,26 +178,71 @@ https://github.com/MudBlazor/MudBlazor/issues/11850#issuecomment-6677061973
 
 **Problem Description**
 
-[In your own words, what is broken or missing?]
+Nothing is broken. `MudDataGrid` has no documented way to expand a
+detail row by clicking the row itself: `ChildRowContent` opens only
+from the `HierarchyColumn` expand button. The issue proposed a
+`RowClickExpand` parameter. On 2026-11-06 danielchalmers (MEMBER)
+answered my design question. `RowClick` plus the public
+`ToggleHierarchyVisibilityAsync` "should cover this in a few lines",
+so he suggested a docs example after the Detail Row section instead,
+calling it "a good first PR". versile2 (CONTRIBUTOR) then posted a
+working snippet and closed the issue as not planned. What's missing is
+documentation, not a feature.
 
 **Expected Behavior**
 
-[What should happen?]
+The DataGrid docs show how to handle `RowClick` and call
+`ToggleHierarchyVisibilityAsync(args.Item)`, so that a row-body click
+toggles that row's detail. With `SelectOnRowClick` on, the same click
+also selects the row; the maintainer said that's fine. The expand
+button still toggles once and stays the keyboard path.
 
 **Current Behavior**
 
-[What actually happens?]
+In my repro on `dev` at `97f33ac` (Viewer, headless Chrome, one
+automated click per scenario), row-body clicks never expanded a row:
+
+- Sam's Name cell with `SelectOnRowClick` on raised `RowClick` and
+  `SelectedItemChanged` (A).
+- Alicia's with it off raised only `RowClick` (C).
+
+Only the expand button expanded a row. It raised
+`HierarchyVisibilityToggled`, with no `RowClick` and no selection
+change (B, D). The docs page has no row-click expansion example.
 
 **Affected Components**
 
-[Which parts of the codebase are involved?]
+- To change: `src/MudBlazor.Docs/Pages/Components/DataGrid/DataGridPage.razor`
+  (a new section after "Row Detail View") and a new example in
+  `.../DataGrid/Examples/`.
+- Read but not changed:
+  - `MudDataGrid.razor.cs`: `OnRowClickedAsync`,
+    `ActivateRowBehaviorsAsync` and `ToggleHierarchyVisibilityAsync`
+  - `HierarchyColumn.razor` and `CellContext.cs`: the expand button
+  - `MudBaseButton.cs`: a `<button>` stops click propagation, which
+    is why B and D raised no `RowClick`
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: Claude Code in my MudBlazor clone, with `CLAUDE.local.md` and
+  `AGENTS.md` loaded. It re-read the live #11850 thread with
+  `gh issue view --comments` and traced the row-click and hierarchy
+  code on `dev` against my A–D event log.
+- What it produced: the maintainer's reply and the closure, caught
+  before planning. It also produced the code trace above, and an
+  explanation for the button result in my repro (`MudBaseButton` stops
+  propagation for a `<button>`).
+- Difficulties: my own framing. I had read #7982 as "expansion must
+  stay separate from selection" and built my claim's question on it.
+  The maintainer said it only meant the button shouldn't change
+  selection. The thread also now disagrees with my repro: versile2
+  says the chevron's click "bubbles up to the row", while my B/D runs
+  and `MudBaseButton.GetClickPropagation` say it doesn't. That's not
+  settled by a test yet.
+- What changed: I dropped `RowClickExpand` and re-scoped the work to
+  the docs example. The bubbling question became a check to run in
+  the Viewer before the example ships, and I updated `CLAUDE.local.md`
+  so my repo memory no longer lists the parameter question as open.
 
 ---
 
@@ -327,29 +372,279 @@ wrapper, so I fixed the selector.
 
 **Analysis**
 
-[Your analysis of the root cause: what is causing the issue, traced
-to the files and functions involved.]
+This plan builds on my reproduction on `dev` at `97f33ac`: a
+`MudBlazor.UnitTests.Viewer` scratch component
+(`TestComponents/Scratch/DataGridRowClickRepro.razor`) showing a
+three-row grid (Sam, Alicia, Ira) with a `HierarchyColumn`,
+`ChildRowContent`, a `SelectOnRowClick` switch and an on-page event
+log. I ran one automated click per scenario in headless Chrome:
+
+| Scenario | Events raised | Detail rows after |
+|---|---|---|
+| A. Row body, Sam (`SelectOnRowClick` on) | `RowClick: Sam (row 0)`, `SelectedItemChanged: Sam` | none |
+| B. Expand button, Ira (on) | `HierarchyVisibilityToggled: Ira expanded=True` | Ira |
+| C. Row body, Alicia (off) | `RowClick: Alicia (row 1)` | Ira (unchanged) |
+| D. Expand button, Alicia (off) | `HierarchyVisibilityToggled: Alicia expanded=True` | Alicia, Ira |
+
+There's no bug behind A and C. Two code paths in
+`src/MudBlazor/Components/DataGrid/MudDataGrid.razor.cs` already
+exist, and nothing connects them:
+
+- **Row click path.** The `<tr>` click calls
+  `OnRowClickedAsync(args, item, rowIndex)`. It raises `RowClick` and
+  then calls `ActivateRowBehaviorsAsync(item)`. That method only
+  starts editing (with `EditTrigger.OnRowClick`) and calls
+  `SetSelectedItemAsync(item)`, which toggles selection and returns
+  early when `SelectOnRowClick` is `false`. Nothing here touches
+  `_openHierarchies`, so A and C never expand. A cell with its own
+  `CellClick` handler goes through `OnCellClickedAsync` instead: it
+  raises `CellClick` (not `RowClick`) and then makes the same
+  `ActivateRowBehaviorsAsync` call.
+- **Hierarchy path.** The public `ToggleHierarchyVisibilityAsync(T)`
+  adds or removes the item in `_openHierarchies` (honoring
+  `ExpandSingleRow`), raises `HierarchyVisibilityToggled`, and
+  re-renders. The default `HierarchyColumn` button reaches it through
+  `CellContext.Actions.ToggleHierarchyVisibilityForItemAsync`. That
+  button is a `MudIconButton`, and `MudBaseButton` adds
+  `onclick:stopPropagation` when it renders as `<button>` without
+  `ClickPropagation`. That matches B and D raising no `RowClick`.
+- **One trap.** `ToggleHierarchyVisibilityAsync` does not check
+  `ButtonDisabledFunc`, although `ExpandAllHierarchy` and
+  `CollapseAllHierarchy` do. A row-click handler that calls it
+  directly would expand a row whose button is disabled.
+
+One `RowClick` handler that calls `ToggleHierarchyVisibilityAsync`
+connects the two paths. The library needs no change. What's missing
+is a docs example that shows the pattern.
 
 **Proposed Solution**
 
-[High-level description of your fix approach, and what you are
-deliberately NOT changing.]
+I'll add a docs example and make no library change. This follows
+danielchalmers' (MEMBER) suggestion on #11850 on 2026-11-06, and it
+builds on versile2's snippet in the same thread. I'll add a new
+example and a short section to the DataGrid docs page, right after
+"Row Detail View". The example uses a `RowClick` handler that calls
+`_dataGrid.ToggleHierarchyVisibilityAsync(args.Item)`, keeps the
+default expand button, and sets `Hover="true"` and
+`RowStyle="cursor: pointer;"` so rows look clickable. The section
+description says three things:
+
+- A row click toggles the detail. With `SelectOnRowClick` on (the
+  default), the same click also selects the row, and a second click
+  collapses it and deselects it. The maintainer said one click
+  selecting and expanding is fine.
+- The expand button stays. It toggles once and is the keyboard path,
+  because a `<tr>` click isn't reachable by keyboard.
+- `ToggleHierarchyVisibilityAsync` ignores `ButtonDisabledFunc`, so a
+  handler that should skip disabled rows has to check that itself.
+
+What I'm deliberately not changing:
+
+- no `RowClickExpand` parameter (the maintainer pointed to the
+  existing API instead)
+- no change to `OnRowClickedAsync`, `ActivateRowBehaviorsAsync`,
+  `ToggleHierarchyVisibilityAsync`, `HierarchyColumn`, or the
+  `RowClick`/`CellClick`/`SelectOnRowClick`/`ExpandSingleRow`
+  behavior
+- no change to the existing `DataGridDetailRowExample`
+- not making the toggle honor `ButtonDisabledFunc` (a behavior change
+  that belongs in its own issue)
+
+**Open choices, with my defaults**
+
+The maintainer suggested this direction, so I'm not waiting for
+another reply before building. He hasn't reviewed this plan or any
+code, though. I'll build with the defaults below and name each choice
+in the PR so reviewers can redirect me:
+
+1. *Placement and name.* I read "after the Detail Row section" as
+   right after "Row Detail View" and before "Row Detail Renderer". The
+   section will be titled "Expand Row on Click", and the example will
+   be `DataGridRowClickExpandExample`, following AGENTS.md's
+   `<Component><Scenario>Example` pattern.
+2. *`ButtonDisabledFunc`.* The example leaves it out, so it teaches one
+   thing (AGENTS.md: one concept per example). The caveat goes in one
+   sentence of the description.
+3. *The `stopPropagation` wrapper.* versile2's snippet wraps the
+   chevron in `<span @onclick:stopPropagation="true">` and says the
+   default button's click bubbles to the row. My B/D runs and
+   `MudBaseButton.GetClickPropagation` say it doesn't. Step 2 tests
+   this. If a button click toggles once, the example uses the plain
+   default `HierarchyColumn` without the wrapper. If it toggles twice,
+   I add the wrapper with a one-line comment and note in the PR why my
+   earlier reading was wrong.
+4. *A pinning test.* No library logic changes, so CONTRIBUTING.md's
+   test requirement doesn't apply. By default I won't add a bUnit
+   test, and I'll offer one in the PR (see step 5).
+
+Risks and unknowns:
+
+- versile2 closed #11850 as not planned. Reviewers could still
+  decline a docs PR.
+- I haven't yet tested a second click, `ExpandSingleRow`,
+  disabled-button rows, virtualization, or keyboard use with the
+  handler wired.
+- The docs page loads `Element` data from `webapi/periodictable`, as
+  the existing examples do. I haven't run `MudBlazor.Docs.Server` on
+  this machine yet.
 
 **Implementation Plan**
 
-1. [Modify file X to do Y]
-2. [Add or change Z]
-3. [Update tests]
+1. **Branch.** In my fork, run `git fetch upstream` and create
+   `feature/datagrid-row-click-expand-example` from `upstream/dev`
+   (CONTRIBUTING.md: `feature/` for enhancements). The PR targets
+   `dev`. To stay current I merge upstream `dev` and never rebase.
+2. **Check the pattern in the Viewer first (scratch only, never
+   committed).** Add the handler to my gitignored repro:
+   `RowClick="OnRowClickAsync"` calling
+   `_grid.ToggleHierarchyVisibilityAsync(args.Item)`. Rebuild with
+   `dotnet build src/MudBlazor.UnitTests.Viewer/MudBlazor.UnitTests.Viewer.csproj --nologo`,
+   run it on `http://localhost:5199`, and re-run each scenario, saving
+   the event log:
 
-[Record deviations here as they happen: what changed mid-build and
-why. A recorded deviation is honest work; silent drift is not.]
+   | Scenario (handler wired) | Before (table above) | Expected after |
+   |---|---|---|
+   | A. Row body, Sam (on) | no detail row | `RowClick`, `SelectedItemChanged: Sam`, `HierarchyVisibilityToggled: Sam expanded=True`; Sam's detail shown |
+   | A2. Row body, Sam again (on) | not run | `HierarchyVisibilityToggled: Sam expanded=False`; Sam's detail hidden, Sam deselected |
+   | B. Expand button, Ira (on) | Ira expanded | exactly one `HierarchyVisibilityToggled: Ira expanded=True`, no `RowClick` |
+   | C. Row body, Alicia (off) | no detail row | `RowClick`, `HierarchyVisibilityToggled: Alicia expanded=True`, no selection change |
+   | D. Expand button, a closed row (off) | expanded | exactly one toggle, no `RowClick` |
+   | E. `ExpandSingleRow` on, row body on a second row | not run | the first row closes and the clicked one opens |
+   | F. Row body on a row whose button is disabled | not run | it expands (records the caveat for the description) |
+
+   A and C changing from "no detail row" to "detail shown" is the
+   result that proves the pattern works. B and D settle choice 3.
+3. **Add the example.** Create
+   `src/MudBlazor.Docs/Pages/Components/DataGrid/Examples/DataGridRowClickExpandExample.razor`,
+   modeled on `DataGridDetailRowExample.razor`:
+
+   ```razor
+   @using System.Net.Http.Json
+   @using MudBlazor.Examples.Data.Models
+   @namespace MudBlazor.Docs.Examples
+   @inject HttpClient httpClient
+
+   <MudDataGrid @ref="_dataGrid" T="Element" Items="@_elements" Hover="true"
+                RowStyle="cursor: pointer;" RowClick="OnRowClickAsync">
+       <Columns>
+           <HierarchyColumn T="Element" />
+           <PropertyColumn Property="x => x.Sign" />
+           <PropertyColumn Property="x => x.Name" />
+           <PropertyColumn Property="x => x.Molar" Title="Molar mass" />
+       </Columns>
+       <ChildRowContent>
+           <MudText>@context.Item.Name is element number @context.Item.Number.</MudText>
+       </ChildRowContent>
+   </MudDataGrid>
+
+   @code {
+       private MudDataGrid<Element> _dataGrid = null!;
+       private IEnumerable<Element> _elements = [];
+
+       protected override async Task OnInitializedAsync()
+       {
+           _elements = await httpClient.GetFromJsonAsync<List<Element>>("webapi/periodictable") ?? [];
+       }
+
+       private Task OnRowClickAsync(DataGridRowClickEventArgs<Element> args)
+           => _dataGrid.ToggleHierarchyVisibilityAsync(args.Item);
+   }
+   ```
+
+   If step 2 shows a double toggle, the `HierarchyColumn` gets a
+   `CellTemplate` with the wrapper (choice 3).
+4. **Add the docs section.** In `DataGridPage.razor`, insert a
+   `DocsPageSection` between "Row Detail View" and "Row Detail
+   Renderer". Its `SectionHeader Title="Expand Row on Click"` has a
+   description making the three points in Proposed Solution, with
+   `CodeInline` for `RowClick`, `ToggleHierarchyVisibilityAsync`,
+   `SelectOnRowClick` and `ButtonDisabledFunc`. Below it goes
+   `<SectionContent DarkenBackground="true" Code="@nameof(DataGridRowClickExpandExample)" Block="true" FullWidth="true">`
+   wrapping `<DataGridRowClickExpandExample />`. I'll leave out
+   `ShowCode="false"`, because the handler is what's being taught.
+   The code panel stays collapsed by default, as AGENTS.md asks for
+   examples longer than 15 lines.
+5. **Tests.** A fail-first test doesn't apply, since no library
+   behavior changes. The proof is step 2's before/after table, re-run
+   against the real docs page in step 6.
+   - **Render test.** `ExampleDocsTests.generated.cs` yields one render
+     test per example (for example, `DataGridDetailRowExample` at
+     line 259), so `-p:GenerateDocsTests=true` should add one for
+     `DataGridRowClickExpandExample` that fails if it throws. I won't
+     edit generated files.
+   - **Optional test.** Only if reviewers ask, I'd add one bUnit test
+     to `DataGridTests.cs` with a one-sentence `<summary>` citing
+     #11850: a row click wired this way expands, a second click
+     collapses, and a button click toggles once. I'd say plainly that
+     it passes on current `dev`.
+6. **Verify.**
+   - `dotnet build src/MudBlazor.Docs/MudBlazor.Docs.csproj -p:SkipBunCompile=true`:
+     build succeeded, 0 warnings.
+   - `dotnet test --project src/MudBlazor.UnitTests.Docs/MudBlazor.UnitTests.Docs.csproj -c Release -p:GenerateDocsTests=true --hangdump --hangdump-timeout 60s`:
+     the summary shows a `DataGridRowClickExpandExample` case passing,
+     and no failures.
+   - Run `dotnet run --project src/MudBlazor.Docs.Server/MudBlazor.Docs.Server.csproj`
+     and open the DataGrid page. In the new section, a click on a
+     row's Name cell shows its detail text and a second click hides it.
+     A click on the chevron toggles once. Capture before (no section
+     on `dev`) and after screenshots or a gif for the PR.
+   - At the end, from `src`, run
+     `dotnet format whitespace --folder --include <changed files>`
+     (paths relative to `src`). Then, from the repo root, run
+     `dotnet format src --verify-no-changes`, the CI format check in my
+     ship manifest.
+7. **PR.** Open it as a draft first. Title:
+   `MudDataGrid: Add docs example for expanding a row on click (#11850)`.
+   The description says `Closes #11850`, as CONTRIBUTING.md asks for
+   issues that aren't bugs (the issue is already closed, but the
+   keyword links the PR). It also links danielchalmers' comment,
+   credits versile2's snippet, and lists choices 1–4. It includes the step 2
+   and step 6 evidence and an AI-assistance disclosure in my own
+   words (PR template). It goes through ship-gate and pr-precheck
+   before `gh pr create`.
+8. **Clean up.** Delete the scratch repro once its evidence is saved.
+
+*Deviations:* the plan changed before any code. I had asked about an
+opt-in `RowClickExpand` parameter. The maintainer pointed to the
+existing API and a docs example, so I dropped the parameter. I'll
+record later changes here and in `plan.md`.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: Claude Code in my MudBlazor clone, with `CLAUDE.local.md` and
+  `AGENTS.md` loaded. It traced the row-click and hierarchy code and
+  the docs page, then drafted this section, `plan.md` (a copy of this
+  section) and `plan-comment.md`. Then plan-check (my rubric,
+  procedure and evidence guide) graded `plan.md` and `plan-comment.md`
+  live against #11850.
+- What it produced: a docs-only plan with the code paths traced, a
+  before/after table built on my A–D scenarios, and four open choices,
+  each with a default. It also found the `ButtonDisabledFunc` trap.
+  Plan-check's first run (2026-11-06) returned REJECT. Diagnosis,
+  Scope, Executability, Test plan and Uncertainty handling passed, but
+  Thread and repo alignment failed: my PR step only "linked" #11850,
+  while CONTRIBUTING.md says to "Include ... `Closes #<issue nr>` for
+  other issues". After that fix and one more (below), the second run
+  returned ACCEPT, with all six required checks passing and no
+  voice-guide rule broken.
+- Difficulties: I first asked Claude to plan `RowClickExpand`. On
+  re-reading the live thread, it found the maintainer's reply and the
+  closure and stopped to ask. Plan-check also expects my repro to be
+  a posted comment, and I've only posted my claim, so the plan and
+  the draft comment have to quote the A–D evidence themselves. And
+  "fail-first tests" doesn't fit a docs change, so the plan proves
+  the change by rerunning my scenarios instead.
+- What changed: the plan became a docs example. I stopped treating
+  another maintainer reply as a gate, because a MEMBER suggested this
+  PR. The repro table moved into the plan itself so the package can
+  be graded alone. I added `Closes #11850` to the PR step, and fixed
+  the CI format command, which my plan had told me to run from `src`
+  even though its path is `src`. My memory file had made the same
+  "linking is enough" mistake, so I corrected it there too. Gaps I'd
+  fix in plan-check: `procedure.md` doesn't say what to do when the
+  repro was never posted to the thread, and it never tells the grader
+  to apply `scope.md`'s rules (maintainer direction, someone else's
+  plan) or the voice guide.
 
 ---
 
